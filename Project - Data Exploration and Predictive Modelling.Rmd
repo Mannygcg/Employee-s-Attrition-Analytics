@@ -1,0 +1,762 @@
+---
+title: "Project: Data Exploration and Predictive Modelling"
+output: html_notebook
+---
+
+Extract the data
+
+```{r}
+#Libraries
+library(rpart)
+library(rpart.plot)
+library(pROC)
+library(tidyr)
+library(ggplot2)
+
+#Import the dataset
+data_e <- read.csv('employees.csv')
+head(data)
+
+info <- read.csv('Dictionary.csv')
+info
+```
+
+Data Exploration
+
+
+The results of the surveys given by Globex Pharma will be referred as 'data'. Whilst the explanation for the information found in the survey will be referred as 'info'.
+
+Questions to be explored:
+
+1.	Are employees with a high level of education among the ones with the highest income?
+
+2.	Is there a relationship between working overtime and promotions?
+
+3.	How is the work environment perceived by the employees?
+
+
+
+1. 1.	Are employees with a high level of education among the ones with the highest income?
+
+```{r}
+par(
+    # Adjust the margins to make space for the legend
+    mar = c(5, 5, 2, 8)
+)
+
+boxplot(
+  MonthlyIncome ~ Education,
+  data = data_e,
+  xlab = 'Level of Education',
+  ylab = 'Monthly Income',
+  main = 'Level of education v Monthly Income',
+  col = 'lightblue'
+)
+legend(
+    # Start with the legend in the top right corner
+    "topright",
+    legend = c("1 - High School", "2 -  Diploma", "3 - Bachelor", "4 - Masters", "5 - PhD"),
+    bty = "n", # DNo border
+    inset = c(-0.28, 0),
+    # Allow plotting outside the plotting area
+    xpd = TRUE
+)
+
+Q1$MonthlyIncome <- data_e$MonthlyIncome
+Q1$Education <- data_e$Education
+
+Q1_means <- aggregate(Q1$MonthlyIncome,list(Q1$Education),mean)
+Q1_median <- aggregate(Q1$MonthlyIncome,list(Q1$Education),median)
+
+print(Q1_means)
+print(Q1_median)
+```
+
+2.	Is there a relationship between working overtime and promotions?
+
+```{r}
+
+boxplot(
+  YearsSinceLastPromotion ~ OverTime,
+  data=data_e,
+  col = 'lightblue',
+  ylab = 'Years',
+  xlab = 'Is the employee doing Overtime?',
+  main = 'Overtime v Years since last promotion'
+  
+)
+
+Q3$YearsSinceLastPromotion <- data_e$YearsSinceLastPromotion
+Q3$OverTime <- data_e$OverTime
+
+Q3_means <- aggregate(Q3$YearsSinceLastPromotion,list(Q3$OverTime),mean)
+Q3_median <- aggregate(Q3$YearsSinceLastPromotion,list(Q3$OverTime),median)
+
+print(Q3_means)
+print(Q3_median)
+
+counts<-table(data_e$OverTime)
+frequency<-counts/length(data_e$OverTime)*100
+
+b <- barplot(
+  frequency,
+  col = 'lightblue',
+  ylab = 'Percentage (%)',
+  xlab = 'Is the employee doing Overtime?',
+  main = 'Employees doing Overtime',
+  ylim = c(0,100)
+)
+
+text(b, frequency+5, labels = frequency)
+
+
+
+
+```
+
+3.	How is the work environment perceived by the employees?
+
+```{r}
+par(
+    mar = c(5, 5, 2, 8)
+)
+
+plot(
+  YearsAtCompany ~ Age,
+  data = data_e,
+  pch=17,
+  cex=1,
+  col = ifelse(data_e$EnvironmentSatisfaction == "1", "red",
+        ifelse(data_e$EnvironmentSatisfaction == "2", "lightblue", 
+        ifelse(data_e$EnvironmentSatisfaction == "3", "blue","darkblue"))
+    ),
+  main = 'Work environment satisfaction in terms of age and tenure',
+  xlab = 'Age',
+  ylab = 'Tenure (years)'
+)
+
+legend(
+    'bottomright',
+    legend = c( "Very High", "High", "Medium", "Low"),
+    pch = 17,
+    pt.cex = 1.5,
+    col = c("darkblue","blue","lightblue","red"),
+    bty = "n",
+    inset = c(-0.25, 0),
+    xpd = TRUE
+)
+
+boxplot(
+  EnvironmentSatisfaction ~ YearsAtCompany,
+  data = data_e,
+  col = 'lightblue',
+  main = 'Work environment satisfaction according to tenure',
+  xlab = ' Tenure (years)',
+  ylab = 'Environment satisfaction (Score 1 to 4)'
+)
+
+
+tendata <- hist(
+    data_e$YearsAtCompany,
+    breaks = seq(from=0, to=40, by=4),
+    plot = FALSE
+)
+tendata$counts <- tendata$counts/sum(tendata$counts)
+
+tendata$counts <- round(tendata$counts/sum(tendata$counts), digits=2)
+plot(
+    tendata,
+    labels = TRUE,
+    ylab = "Relative frequency",
+    ylim=c(0,1),
+    xlab = 'Tenure',
+    main = 'Employees distribution by tenure',
+    col = 'lightblue'
+)
+
+```
+
+Predictive Modelling
+
+```{r}
+#Import dataset
+data <- read.csv('employees2.csv')
+
+head(data)
+
+#Changing some variable's type and their values for simplicity.
+data$MonthlyIncome <- as.numeric(data$MonthlyIncome)
+data$DistanceFromHome <- as.numeric(data$DistanceFromHome)
+data$BusinessTravel <- ifelse(data$BusinessTravel == 'Non-Travel','NT',
+                              ifelse(data$BusinessTravel == 'Travel_Rarely','Rarely',
+                                     'Freq'))
+
+#Initial exploration - We will be plotting some of the plausible/suspected relevant predictors
+str(data)
+par(mfrow=c(2,3),cex.main=0.75, cex.lab=0.75)
+
+boxplot(
+  DistanceFromHome ~ Attrition,
+  data = data,
+  color = 'lightblue',
+  main = 'Distance From Home 
+  v Attrition',
+  ylab = 'Distance From Home (km)'
+)
+
+mosaicplot(
+  Attrition ~ BusinessTravel,
+  data = data,
+  color = 'lightblue',
+  main = 'Frequency of Business Travel 
+  v Attrition',
+  ylab = 'Frequency of Business Travel'
+)
+
+mosaicplot(
+  Attrition ~ EnvironmentSatisfaction,
+  data = data,
+  color = 'lightblue',
+  main = 'Work Environment Satisfaction 
+  v Attrition',
+  ylab = 'Work Environment SAtisfaction (1-4)'
+)
+
+mosaicplot(
+  Attrition ~ OverTime,
+  data = data,
+  color = 'lightblue',
+  main = 'Overtime 
+  v Attrition'
+)
+
+mosaicplot(
+  Attrition ~ WorkLifeBalance,
+  data = data,
+  color = 'lightblue',
+  main = 'Work Life Balance 
+  v Attrition',
+  ylab = 'Work Life Balance score (1-4)'
+)
+
+boxplot(
+  MonthlyIncome ~ Attrition,
+  data = data,
+  color = 'lightblue',
+  main = 'Monthly Income 
+  v Attrition',
+  ylab = 'Monthly Income ($)'
+)
+
+#Mainly used for a quick exploration of the possibilities in regards predictive modelling
+par(mfrow=c(1,1),cex.main=0.75, cex.lab=0.75)
+data %>%
+  gather(-Attrition, key = "var", value = "value") %>%
+  ggplot(aes(x = value, y = Attrition)) +
+    geom_point(alpha = 0.02, color = 'blue') +
+    stat_smooth() +
+    facet_wrap(~ var, scales = "free") +
+    theme_bw()
+median(data$MonthlyIncome)
+```
+```{r}
+# Convert the attrition variable to binomial
+data$AttritionB = ifelse(data$Attrition == "Yes", 1, 0) #AttritionB is Attrition in Binary
+
+# Target variable (Independent Variable)
+target <- "AttritionB"
+
+# Possible predictor variables
+possible_predictors <- c('Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 'Gender', 'JobInvolvement', 'JobRole', 'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked', 'OverTime', 'PerformanceRating', 'RelationshipSatisfaction', 'StockOptionLevel','TotalWorkingYears','TrainingTimesLastYear','WorkLifeBalance','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
+
+# Variables that will be used for the Backward Stepwise Selection
+current_predictors_BSS <- c('Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 'Gender', 'JobInvolvement', 'JobRole', 'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked', 'OverTime', 'PerformanceRating', 'RelationshipSatisfaction', 'StockOptionLevel','TotalWorkingYears','TrainingTimesLastYear','WorkLifeBalance','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
+
+# Split the data into 10 groups/folds for cross-validation
+set.seed(42)
+data$Fold <- sample(rep(1:10, length.out=nrow(data)))
+```
+
+```{r}
+#Let's compare Forward stepwise selection v Backward stepwise selection (Logistic Regression)
+
+#Forward Stepwise Selection
+
+# Start with no recommended predictors and a cross-validation score of 0
+current_predictors_FSS <- c()
+current_score_FSS <- 0
+
+# cv_score is a function that will find the cross-validation score for a given set of predictors
+cv_score <- function(predictors) {
+  scores <- c()
+  for (fold in 1:10) {
+    training = data[data$Fold != fold,]
+    validation = data[data$Fold == fold,]
+    model <- glm(
+      formula = paste(target, " ~ ", paste(predictors, collapse = " + "), sep = ""),
+      data = training,
+      family = "binomial"
+    )
+    validation$Probability <- predict(
+      object = model,
+      newdata = validation,
+      type = "response"
+    )
+    auc <- roc(validation[[target]] ~ validation$Probability, quiet = TRUE)$auc
+    scores <- c(scores, auc)
+  }
+  return(mean(scores))
+}
+
+# step_forward is defined as a function that will try each possible new predictor, get their cross-val score and find the best score and best new predictor
+step_forward <- function() {
+  
+  # Show the current predictors and score
+  message("Current predictors: ", paste(current_predictors_FSS, collapse=", "))
+  message("Current score: ", current_score_FSS)
+  # Create a vector in which to put the score for each possible predictor
+  scores <- c()
+  # Loop through the possible predictors
+  for (predictor in possible_predictors) {
+    # Add the predictor
+    new_predictors <- c(current_predictors_FSS, predictor)
+    # Find the cross-validation score
+    score <- cv_score(new_predictors)
+    # Show and record the result
+    message("With ", predictor, ": ", score)
+    scores[predictor] <- score
+  }
+  # Find the best new score
+  best_score <- max(scores)
+  # If the best new score is better than the current new score
+  if (best_score > current_score_FSS) {
+    # Find the best new predictor
+    new_predictor <- names(scores)[which.max(scores)]
+    # Add it to the current predictors
+    # Remove it from the current predictors
+    # And update the current score
+    message("Adding ", new_predictor, "\n")
+    current_predictors_FSS <<- c(current_predictors_FSS, new_predictor)
+    possible_predictors <<- possible_predictors[possible_predictors != new_predictor]
+    current_score_FSS <<- best_score
+    # If there are any possible predictors left, step forward again
+    if (length(possible_predictors) > 0) step_forward()
+  }
+  # If the best new score is no better, stop
+  else message("Nothing to add\n")
+}
+
+
+# Start the stepping process
+step_forward()
+
+
+# Backward stepwise selection
+
+# Calculate the current cross-validation score
+
+current_score_BSS <- 0
+current_score_BSS <- cv_score(current_predictors_BSS)
+
+# Step Backward function
+step_backward <- function() {
+    message("Current predictors: ", paste(current_predictors_BSS, collapse=", "))
+    message("Current score: ", current_score_BSS)
+    # Create a vector in which to put the score for each predictor
+    scores <- c()
+    # Loop through the predictors
+    for (predictor in current_predictors_BSS) {
+        # drop the predictor
+        new_predictors <- current_predictors_BSS[current_predictors_BSS != predictor]
+        # Find the cross-validation score
+        score <- cv_score(new_predictors)
+        # Show and record the result
+        message("Without ", predictor, ": ", score)
+        scores[predictor] <- score
+    }
+    # Find the best new score
+    best_score <- max(scores)
+    # If the best new score is at least as good as the current score
+    if (best_score >= current_score_BSS) {
+        # Find the associated predictor
+        predictor_to_drop <- names(scores)[which.max(scores)]
+        # Drop it from the current predictors
+        # And update the current score
+        message("Dropping ", predictor_to_drop, "\n")
+        current_predictors_BSS <<- current_predictors_BSS[current_predictors_BSS != predictor_to_drop]
+        current_score_BSS <<- best_score
+        # If there are two or more predictors in the model, step backward again
+        if (length(current_predictors_BSS) >= 2) step_backward()
+    }
+    # If the best new score is worse, stop
+    else message("Nothing to drop\n")
+}
+
+# Start the stepping process
+step_backward()
+
+# Show the final results
+message("Best predictors for Forward stepwise selection (logistic regression): ", paste(current_predictors_FSS, collapse = ", "))
+message("Cross-validation scorefor Forward stepwise selection (logistic regression): ", current_score_FSS)
+
+message("\nBest predictors for Backward stepwise selection (logistic regression): ", paste(current_predictors_BSS, collapse = ", "))
+message("Cross-validation score for Backward stepwise selection (logistic regression): ", current_score_BSS)
+
+```
+
+
+
+```{r}
+current_predictors_FSS_lr <- current_predictors_FSS
+current_predictors_BSS_lr <- current_predictors_BSS
+current_score_FSS_lr <- current_score_FSS
+current_score_BSS_lr <- current_score_BSS
+
+#What are the difference in predictors between FSS and BSS?
+current_predictors_FSS_lr[!(current_predictors_FSS_lr %in% current_predictors_BSS_lr)]
+current_predictors_BSS_lr[!(current_predictors_BSS_lr %in% current_predictors_FSS_lr)]
+
+#Which method has the best score?
+message('FSS AUC (logistic regression): ',current_score_FSS_lr)
+message('BSS AUC (logistic regression): ',current_score_BSS_lr)
+message(ifelse(current_score_FSS_lr == current_score_BSS_lr,
+      'FSS and BSS provide variables that have the same AUC (logistic regression)',
+       ifelse(current_score_FSS_lr > current_score_BSS_lr,('Predictor variables from FSS provide a better AUC (logistic regression)'), ('Predictor variables from BSS provide a better AUC (logistic regression)'))))
+
+best_score_LR <- ifelse(current_score_FSS_lr > current_score_BSS_lr,current_score_FSS_lr,current_score_BSS_lr)
+best_score_LR_method <- ifelse(current_score_FSS_lr > current_score_BSS_lr,'FSS','BSS')
+
+```
+```{r}
+possible_predictors <- c('Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 'Gender', 'JobInvolvement', 'JobRole', 'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked', 'OverTime', 'PerformanceRating', 'RelationshipSatisfaction', 'StockOptionLevel','TotalWorkingYears','TrainingTimesLastYear','WorkLifeBalance','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
+
+# Variables that will be used for the Backward Stepwise Selection
+current_predictors_BSS <- c('Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 'Gender', 'JobInvolvement', 'JobRole', 'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked', 'OverTime', 'PerformanceRating', 'RelationshipSatisfaction', 'StockOptionLevel','TotalWorkingYears','TrainingTimesLastYear','WorkLifeBalance','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
+
+# Decision Tree Model
+
+# Target variable (Independent Variable)
+target <- "AttritionB"
+
+#Let's compare Forward stepwise selection v Backward stepwise selection
+
+# Start with no recommended predictors
+current_predictors_FSS <- c()
+# and a cross-validation score of 0
+current_score_FSS <- 0
+
+# cv_score_tree is a function that will find the cross-validation score for a given set of predictors
+cv_score_tree <- function(predictors) {
+  scores <- c()
+  for (fold in 1:10) {
+    training = data[data$Fold != fold,]
+    validation = data[data$Fold == fold,]
+    model <- rpart(
+      formula = paste(target, " ~ ", paste(predictors, collapse = " + "), sep = ""),
+      data = training,
+      method = 'class'
+    )
+    validation$Probability <- predict(
+      object = model,
+      newdata = validation,
+      type = 'prob'
+    )
+    auc <- roc(validation[[target]] ~ validation$Probability[,2], quiet = TRUE)$auc
+    scores <- c(scores, auc)
+  }
+  return(mean(scores))
+}
+
+# step_forward_tree is a function that will try each possible new predictor, get their cross-val score,
+# Find the best score and best new predictor
+step_forward_tree <- function() {
+  
+  # Show the current predictors and score
+  message("Current predictors: ", paste(current_predictors_FSS, collapse=", "))
+  message("Current score: ", current_score_FSS)
+  # Create a vector in which to put the score for each possible predictor
+  scores <- c()
+  # Loop through the possible predictors
+  for (predictor in possible_predictors) {
+    # Add the predictor
+    new_predictors <- c(current_predictors_FSS, predictor)
+    # Find the cross-validation score
+    score <- cv_score_tree(new_predictors)
+    # Show and record the result
+    message("With ", predictor, ": ", score)
+    scores[predictor] <- score
+  }
+  # Find the best new score
+  best_score <- max(scores)
+  # If the best new score is better than the current new score
+  if (best_score > current_score_FSS) {
+    # Find the best new predictor
+    new_predictor <- names(scores)[which.max(scores)]
+    # Add it to the current predictors
+    # Remove it from the current predictors
+    # And update the current score
+    message("Adding ", new_predictor, "\n")
+    current_predictors_FSS <<- c(current_predictors_FSS, new_predictor)
+    possible_predictors <<- possible_predictors[possible_predictors != new_predictor]
+    current_score_FSS <<- best_score
+    # If there are any possible predictors left, step forward again
+    if (length(possible_predictors) > 0) step_forward()
+  }
+  # If the best new score is no better, stop
+  else message("Nothing to add\n")
+}
+
+# Start the stepping process
+message('Step_forward')
+step_forward_tree()
+
+# Calculate the current cross-validation score
+current_score_BSS <- 0
+current_score_BSS <- cv_score(current_predictors_BSS)
+
+
+step_backward_tree <- function() {
+
+    message("Current predictors: ", paste(current_predictors_BSS, collapse=", "))
+    message("Current score: ", current_score_BSS)
+    
+    # Create a vector in which to put the score for each predictor
+    scores <- c()
+
+    # Loop through the predictors
+    for (predictor in current_predictors_BSS) {
+        
+        # drop the predictor
+        new_predictors <- current_predictors_BSS[current_predictors_BSS != predictor]
+        
+        # Find the cross-validation score
+        score <- cv_score_tree(new_predictors)
+        
+        # Show and record the result
+        message("Without ", predictor, ": ", score)
+        scores[predictor] <- score
+    }
+
+    # Find the best new score
+    best_score <- max(scores)
+
+    # If the best new score is at least as good as the current score
+    if (best_score >= current_score_BSS) {
+        # Find the associated predictor
+        predictor_to_drop <- names(scores)[which.max(scores)]
+        
+        # Drop it from the current predictors
+        # And update the current score
+        message("Dropping ", predictor_to_drop, "\n")
+        current_predictors_BSS <<- current_predictors_BSS[current_predictors_BSS != predictor_to_drop]
+        current_score_BSS <<- best_score
+        
+        # If there are two or more predictors in the model, step backward again
+        if (length(current_predictors_BSS) >= 2) step_backward()
+    }
+
+    # If the best new score is worse, stop
+    else message("Nothing to drop\n")
+}
+
+# Start the stepping process
+message('Step_backward')
+step_backward_tree()
+
+# Show the final results
+message("Best predictors for Forward Stewise Selection (Decision Tree): ", paste(current_predictors_FSS, collapse = ", "))
+message("Cross-validation score for Forward Stewise Selection (Decision Tree): ", current_score_FSS)
+message("\nBest predictors for Backward Stewise Selection (Decision Tree): ", paste(current_predictors_BSS, collapse = ", "))
+message("Cross-validation score for Backward Stewise Selection (Decision Tree): ", current_score_BSS)
+```
+```{r}
+current_predictors_FSS_tree <- current_predictors_FSS
+current_predictors_BSS_tree <- current_predictors_BSS
+current_score_FSS_tree <- current_score_FSS
+current_score_BSS_tree <- current_score_BSS
+
+#Is there a difference between the FSS and BSS methods?
+current_predictors_FSS_tree[!(current_predictors_FSS_tree %in% current_predictors_BSS_tree)]
+current_predictors_BSS_tree[!(current_predictors_BSS_tree %in% current_predictors_FSS_tree)]
+
+#Comparison
+message('FSS AUC (Decision Tree): ',current_score_FSS_tree)
+message('BSS AUC (Decision Tree): ',current_score_BSS_tree)
+message(ifelse(current_score_FSS_tree == current_score_BSS_tree,
+      'FSS and BSS provide variables that have the same AUC',
+       ifelse(current_score_FSS_tree > current_score_BSS_tree,('Predictor variables from FSS provide a better AUC '), ('Predictor variables from BSS provide a better AUC '))))
+
+best_score_tree <- ifelse(current_score_FSS_tree >current_score_BSS_tree,current_score_FSS_tree,current_score_BSS_tree)
+
+best_score_tree_method <- ifelse(current_score_FSS_tree > current_score_BSS_tree,'FSS','BSS')
+```
+
+```{r}
+#Re-state the best method for each model
+message('Best logistic regression score and method: ',best_score_LR,' ',best_score_LR_method)
+message('Best decision tree score and method: ',best_score_tree,' ',best_score_tree_method)
+message(ifelse(best_score_LR > best_score_tree,
+      '\nLogistic Regression model provides a higher AUC than the Decision Tree model.\n',
+       '\nDecision Tree model provides a higher AUC than the Logistic Regression model\n'))
+
+#Is there a difference in the independent variables between the 'best' between the two models?
+current_predictors_BSS_lr[!(current_predictors_BSS_lr %in% current_predictors_FSS_tree)]
+current_predictors_FSS_tree[!(current_predictors_FSS_tree %in% current_predictors_BSS_lr)]
+
+```
+
+```{r}
+
+# Logistic Regression proved to be the superior model, we will now focus on the remaining predictors being used
+
+model_FSS_LR <- glm(
+      formula = paste(target, " ~ ", paste(current_predictors_BSS_lr, collapse = " + "), sep = ""),
+      data = data,
+      family = "binomial"
+    )
+summary(model_FSS_LR)
+
+#There are many predictors that are not significant, we will be excluding these and creating variables for the ones that are significant at least by 0.01
+
+data$BusinessTravelTravel_Frequently <- ifelse(data$BusinessTravel == 'Freq',1,0)
+data$BusinessTravelTravel_Rarely <- ifelse(data$BusinessTravel == 'Rarely',1,0)
+data$JobRoleHuman_Resources <- ifelse(data$JobRole == 'Human Resources',1,0)
+data$JobRoleLaboratory_Technician <- ifelse(data$JobRole == 'Laboratory Technician',1,0)
+data$JobRoleSales_Executive <- ifelse(data$JobRole == 'Sales Executive',1,0)
+data$JobRoleSales_Representative <- ifelse(data$JobRole == 'Sales Representative',1,0)
+data$MaritalStatusSingle <- ifelse(data$MaritalStatus == 'Single',1,0)
+data$OverTimeYes <- ifelse(data$OverTime == 'Yes',1,0)
+
+# Re-Do Logistic Regression model with new variables
+scores <- c()
+scores_sensitivity <- c()
+for (fold in 1:10) {
+    training = data[data$Fold != fold, ]
+    validation = data[data$Fold == fold, ]
+    model_LR <- glm(
+        formula = AttritionB ~ Age + DistanceFromHome + EnvironmentSatisfaction +
+          JobInvolvement + NumCompaniesWorked +RelationshipSatisfaction + WorkLifeBalance + YearsInCurrentRole +YearsSinceLastPromotion + BusinessTravelTravel_Frequently + BusinessTravelTravel_Rarely + JobRoleHuman_Resources + JobRoleLaboratory_Technician + JobRoleSales_Executive + JobRoleSales_Representative + MaritalStatusSingle + OverTimeYes,
+        data = training,
+        family = "binomial"
+    )
+    validation$Probability <- predict(
+        object = model_LR,
+        newdata = validation,
+        type = "response"
+    )
+    score_thres <- coords(roc(validation$AttritionB ~ validation$Probability), 
+                          "best", ret = "threshold")[1,1]
+    validation$Prediction <- ifelse(validation$Probability >= score_thres, 1, 0)
+    conf_matrix <- table(validation$Prediction, validation$AttritionB)
+    auc <- roc(validation$AttritionB ~ validation$Probability)$auc
+    scores_sensitivity <- c(scores_sensitivity, conf_matrix[2,2]/sum(conf_matrix[,2]))
+    scores <- c(scores, auc)
+}
+message("Cross-validation AUC: ", mean(scores))
+message("Cross-validation Sensitivity: ", mean(scores_sensitivity))
+
+
+#Decision Tree With updated predictors
+scores_tree <- c()
+scores_sensitivity_tree <- c()
+for (fold in 1:10) {
+    training = data[data$Fold != fold, ]
+    validation = data[data$Fold == fold, ]
+    model_DT <- rpart(
+        formula = AttritionB ~ MonthlyIncome + OverTime + MaritalStatus + EnvironmentSatisfaction+ BusinessTravel+ JobInvolvement+ YearsInCurrentRole+ YearsSinceLastPromotion+ DistanceFromHome+ WorkLifeBalance+ TrainingTimesLastYear+ Gender+ NumCompaniesWorked+ JobRole+ Age+ RelationshipSatisfaction+ PerformanceRating,
+        data = training,
+        method='class'
+    )
+    validation$Probability <- predict(
+        object = model_DT,
+        newdata = validation,
+        type = "prob"
+    )
+    score_thres <- coords(roc(validation$AttritionB ~ validation$Probability[,2]), 
+                          "best", ret = "threshold")[1,1]
+    validation$Prediction <- ifelse(validation$Probability[,2] >= score_thres, 1, 0)
+    conf_matrix <- table(validation$Prediction, validation$AttritionB)
+    auc <- roc(validation$AttritionB ~ validation$Probability[,2])$auc
+    scores_sensitivity_tree <- c(scores_sensitivity, conf_matrix[2,2]/sum(conf_matrix[,2]))
+    scores_tree <- c(scores, auc)
+}
+message("Cross-validation AUC: ", mean(scores_tree))
+message("Cross-validation Sensitivity: ", mean(scores_sensitivity_tree))
+
+model_LR <- glm(
+      formula = AttritionB ~ Age + DistanceFromHome + EnvironmentSatisfaction +
+          JobInvolvement + NumCompaniesWorked +RelationshipSatisfaction + WorkLifeBalance + YearsInCurrentRole +YearsSinceLastPromotion + BusinessTravelTravel_Frequently + BusinessTravelTravel_Rarely + JobRoleHuman_Resources + JobRoleLaboratory_Technician + JobRoleSales_Executive + JobRoleSales_Representative + MaritalStatusSingle + OverTimeYes,
+      data = data,
+      family = "binomial"
+    )
+summary(model_LR)
+
+model_DT <- rpart(
+  formula = AttritionB ~ MonthlyIncome + OverTime + MaritalStatus + EnvironmentSatisfaction+ BusinessTravel+ JobInvolvement+ YearsInCurrentRole+ YearsSinceLastPromotion+ DistanceFromHome+ WorkLifeBalance+ TrainingTimesLastYear+ Gender+ NumCompaniesWorked+ JobRole+ Age+ RelationshipSatisfaction+ PerformanceRating,
+  data = data,
+  method = 'class'
+)
+
+rpart.plot(
+  model_DT,
+  type = 4,
+  extra = 4
+  )
+```
+
+```{r}
+message("Cross-validation AUC (Logistic Regression): ", mean(scores))
+message("Cross-validation Sensitivity (Logistic Regression): ", mean(scores_sensitivity))
+message("Cross-validation AUC (Decision Tree): ", mean(scores_tree))
+message("Cross-validation Sensitivity (Decision Tree): ", mean(scores_sensitivity_tree))
+```
+
+```{r}
+data$Probability_LR <- predict(
+  object = model_LR,
+  newdata = data,
+  type = "response"
+) 
+
+roc(
+    formula = data$AttritionB ~ data$Probability_LR,
+    plot = TRUE,
+    print.auc = TRUE,
+    print.thres = "best",
+    main = 'ROC Logistic Regression'
+)
+
+data$Probability_DT <- predict(
+  object = model_DT,
+  newdata = data,
+  type = "prob"
+) 
+
+roc(
+    formula = data$AttritionB ~ data$Probability_DT[ , 2],
+    plot = TRUE,
+    print.auc = TRUE,
+    print.thres = "best",
+    main = 'ROC Decision Trees'
+)
+
+#Our focus should be in achieving a high sensitivity, since we would like to predict if a employee is going to leave the company.
+
+data$Prediction_LR <- ifelse(data$Probability_LR >= 0.172, 1, 0)
+data$Prediction_DT <- ifelse(data$Probability_DT[ , 2] >= 0.165, 1, 0)
+
+conf_matrix_LR <- table(data$Prediction_LR, data$AttritionB)
+conf_matrix_LR
+message("Accuracy: ", sum(diag(conf_matrix_LR))/sum(conf_matrix_LR))
+message("Sensitivity: ", conf_matrix_LR[2,2]/sum(conf_matrix_LR[,2]))
+message("Specificity: ", conf_matrix_LR[1,1]/sum(conf_matrix_LR[,1]))
+
+conf_matrix_DT <- table(data$Prediction_DT, data$AttritionB)
+conf_matrix_DT
+message("Accuracy: ", sum(diag(conf_matrix_DT))/sum(conf_matrix_DT))
+message("Sensitivity: ", conf_matrix_DT[2,2]/sum(conf_matrix_DT[,2]))
+message("Specificity: ", conf_matrix_DT[1,1]/sum(conf_matrix_DT[,1]))
+
+#The Decision Tree Specificity at their 'best' had a high specificity but as mentioned before, we are prioritising sensitivity which the lo
+
+```
