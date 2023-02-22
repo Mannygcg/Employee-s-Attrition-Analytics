@@ -23,6 +23,10 @@ The purpose of this question is to explore the relationship between Globex Pharm
 •	Significant income jump from employees that have graduated from High School and employees with diplomas.
 •	Negligible difference between employees with diplomas, bachelor, and master’s degrees in terms of the monthly income median. However, the bachelor’s degree seems to have the highest variability.
 
+![Figure 1 - Level of education v Monthly Income](https://user-images.githubusercontent.com/111329092/220790025-7754355f-94cc-45ca-b413-c3e2968ebce1.png)
+
+*Figure 1 - Level of education v Monthly Income* 
+
 According to a study made by the Australian Government (Department of Education, 2022), educational attainment has an impact on employment and incomes – increasing educational attainment is normally associated with a higher income from wages and salaries.
 
 With this information, we could assume that there is a high possibility that the turnover might be unrelated to employees with a higher level of education being underpaid to peers with a lower level of education.
@@ -36,11 +40,19 @@ The purpose of this question is to explore the relationship between Globex Pharm
 •	The median for both employees is identical (1 year).
 •	The mean years since last promotion for employees that do not perform overtime is higher than those that do. However, the difference is of only 0.06 years.
 
+![Figure 2 - Overtime v Years since last promotion](https://user-images.githubusercontent.com/111329092/220790376-bf83c948-e48d-437b-8188-7b44cbbb2ac5.png)
+
+*Figure 2 - Overtime v Years since last promotion*
+
 Many companies support overtime and even reward with promotions to their employees for it (Patel, 2019). However, studies have confirmed that working overtime can have detrimental effects on health  (Rabenu, 2017) (Nien-Chih Hu, 2016) and could potentially make employees quit (Tilo, 2022).
 
 According to our analysis, Globex Pharma does not appear to have a culture that rewards those who overtime with promotions over those who do not. This would be a positive view for the company regarding career progression.
 
 Nevertheless, further analysis showed that 26.8% of Globex Pharma employees do overtime Figure 3. Globex Pharma might need to address this issue since it could be a reason for the recent turnover.
+
+![Figure 3 - Employees doing Overtime](https://user-images.githubusercontent.com/111329092/220790424-fb0a1749-1209-4f7a-bb95-72dea3b3ccab.png)
+
+*Figure 3 - Employees doing Overtime*
 
 ### Question 3 – How is the work environment perceived by the employees?
 
@@ -49,6 +61,14 @@ The purpose of this question is to explore the work environment satisfaction of 
 •	Employees with high tenure seem to have a higher work environment satisfaction.
 •	Most of the employees (70%) have less than 8 years of tenure and a big group (40%) has less than 4 years of tenure.
 •	Overall, most of the employees with low work environment satisfaction have less than 5 years of tenure.
+
+![Figure 4 - Work environment satisfaction in terms of age and tenure](https://user-images.githubusercontent.com/111329092/220790486-a89dd49d-5222-4b9a-9235-b967182ebcae.png)
+
+*Figure 4 - Work environment satisfaction in terms of age and tenure*
+
+![Figure 5 - Employees distribution by tenure](https://user-images.githubusercontent.com/111329092/220790494-2173d595-1a3d-4096-a184-c82924e9c2a7.png)
+
+*Figure 5 - Employees distribution by tenure*
 
 According to studies (Raziq & Maulabakhsh, 2015) (Donley, 2021), working conditions are pivotal for an employee job satisfaction and including its efficiency, effectiveness and productivity whilst working. Furthermore, another review (Flowers & Hughes, 1973) claims that the two most relevant factors for someone to stay or leave a company are job satisfaction and work environment.
 
@@ -105,7 +125,11 @@ For this model, sensitivity measures how correctly the model predicts if an empl
 The logistic regression model has a higher AUC score and sensitivity than the decision tree model, nevertheless they both provide a good sensitivity score.
 
 ### Key Predictors
-Despite the decision tree (DR) and the logistic regression (LR) models having different AUC and sensitivity scores, they have similar predictor variables (Table 1) 
+Despite the decision tree (DR) and the logistic regression (LR) models having different AUC and sensitivity scores, they have similar predictor variables (Table 1)
+
+<img width="348" alt="Table 1 - Key Predictor Variables for models" src="https://user-images.githubusercontent.com/111329092/220790563-0ce6f4f4-9983-4143-9deb-3003ce394209.png">
+
+*Table 1 - Key Predictor Variables for models*
 
 Out of the 25 predictor variables available, the LR model is using 15 whilst the DR model is using 19 – which includes all LR predictor variables.
 
@@ -113,6 +137,10 @@ However, one of the key differences between the predictor variables between the 
 
 #### Logistic Regression Key Predictor Variables
 Looking at the results of the logistic model (Figure 6). In this section we will discuss the key predictor variables for Attrition and how they impact it – assuming all the other predictor variables are held constant.
+
+<img width="283" alt="Figure 6 - Logistic Regression model summary (without non-statistically significant variables)" src="https://user-images.githubusercontent.com/111329092/220790602-5113e0ef-dea7-46e0-b07e-7110c5d7a76a.png">
+
+*Figure 6 - Logistic Regression model summary (without non-statistically significant variables)*
 
 The further away from 0 the bigger the impact the predictor has on attrition. Positive coefficients increases the probability of Attrition whilst negative ones decreases it. These were the key predictor variables for Attrition (in order of relevance):
 
@@ -164,6 +192,10 @@ o	They earn less than $3752 (the company median is $4,837),
 o	Are younger than 34 years, 
 o	Are married or single, and
 o	Are a Research Scientist, Human Resources, Lab technician or sales representative. Nevertheless, if an employee is not in one of those roles and live less than 11km from the office, they have an 81% chance of leaving the company.
+
+<img width="452" alt="Figure 7 - Decision Tree Diagram" src="https://user-images.githubusercontent.com/111329092/220790673-88443478-bed1-49e0-9336-b902dd96299e.png">
+
+*Figure 7 - Decision Tree Diagram*
 
 ### Model results differences
 When examining the differences between the models, it can be seen that the logistic regression model provides a better and more accurate prediction than the decision tree model in terms of AUC and sensitivity.
